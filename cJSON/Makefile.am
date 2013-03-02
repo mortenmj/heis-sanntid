@@ -1,6 +1,7 @@
-noinst_LTLIBRARIES = libheis.la
+AM_CFLAGS = -std=c99
+noinst_LTLIBRARIES = libcjson.la
 
-libheis_la_SOURCES = \
+libcjson_la_SOURCES = \
 	cJSON.c \
 	cJSON.h \
 	$(NULL)
