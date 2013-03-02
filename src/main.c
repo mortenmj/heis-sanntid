@@ -8,6 +8,7 @@
 #include <libheis/elev.h>
 
 #include "comms.h"
+#include "messages.h"
 
 #define N_ORDERS 3
 
@@ -33,7 +34,7 @@ int main()
 }
 
 void command_button_callback (int floor, int value) {
-    unsigned char* msg = "lolollhaha";
+    unsigned char* msg = messages_order(ELEV_DIR_COMMAND, floor);
 
     comms_send_data(msg);
 }
