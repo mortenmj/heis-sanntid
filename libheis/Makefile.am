@@ -1,3 +1,4 @@
+AM_CFLAGS = -std=c99
 noinst_LTLIBRARIES = libheis.la
 
 libheis_la_SOURCES = \
@@ -8,4 +9,4 @@ libheis_la_SOURCES = \
 	elev.h \
 	$(NULL)
 
-libheis_la_LIBADD = -lm -lcomedi
+libheis_la_LIBADD = -lm -lcomedi -lpthread

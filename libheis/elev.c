@@ -66,8 +66,6 @@ void elev_set_speed(int speed)
 
 	// Write new setting to motor.
 	io_write_analog(MOTOR, 2048 + 2*abs(speed));
-
-	printf(__FILE__ ": Speed set to %d\n", speed);
 }
 
 
