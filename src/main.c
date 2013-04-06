@@ -7,12 +7,15 @@
 #include <pthread.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <libheis/elev.h>
 
 #include "comms.h"
 #include "messages.h"
 #include "queue.h"
+#include "operator.h"
+#include "orderLists.h"
 
 #define N_ORDERS 3
 
@@ -29,28 +32,35 @@ static void order_signal_callback (int floor, int value) {
 
 int main()
 {
+	int target = 1;
+	double floor = 1;
+	int state;
 	int ret;
-    pthread_t listener;
-    fd_set tmpset;
+	
 
-    fd = comms_create_socket();
+	comms_create_socket();
     comms_set_nonblocking(fd);
 
 	if (!elev_init()) {
 		exit(1);
 	}
-
-    pthread_create (&listener, NULL, (void *) &comms_listen, NULL);
-
+	
+	elev_reset_all_lamps();
+	state = initializeOperator();
+	
 	elev_register_callback(SIGNAL_TYPE_CALL_UP, order_signal_callback);
 	elev_register_callback(SIGNAL_TYPE_CALL_DOWN, order_signal_callback);
 	elev_register_callback(SIGNAL_TYPE_COMMAND, order_signal_callback);
 
 	ret = elev_enable_callbacks();
-
-	while(1) {
+	
+	while(1){
+		printState( floor, state, target );
+		floor=findFloor( floor, state );
+		state=elevatorOperator(floor, &target, state);
         comms_listen();
-    }
+        usleep(10000);
+	};
 
 	return 0;
 }
