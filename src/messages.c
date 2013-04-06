@@ -4,7 +4,7 @@
 
 #include <cJSON/cJSON.h>
 
-char* messages_order(int type, int floor) {
+char* messages_order(int floor, int type) {
     char* out;
     cJSON *root, *cli;
 
