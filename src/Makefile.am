@@ -1,4 +1,4 @@
-AM_CFLAGS = -std=c99 -lpthread
+AM_CFLAGS = -std=c99 -lpthread -D_GNU_SOURCE
 
 bin_PROGRAMS = heis
 heis_SOURCES = \
