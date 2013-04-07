@@ -1,3 +1,6 @@
+#ifndef __ORDERLIST_H__
+#define __ORDERLIST_H__
+
 #define N_FLOORS 4
 #define MAX_N_ELEVATORS 3
 
@@ -36,3 +39,5 @@ int orderlist_register_call_up (int button);
 int orderlist_register_call_down (int button);
 int orderlist_register_call_order (int floor, int elevator);
 void orderlist_set_lights (double floor, int elevator);
+
+#endif
