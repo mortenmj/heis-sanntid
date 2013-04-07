@@ -9,7 +9,7 @@
 extern orderinfo_t callUp[ N_FLOORS-1 ]; 					// 0 = floor 1, N_FLOORS = floor N_FLOORS - 1.
 extern orderinfo_t callDown[ N_FLOORS-1 ];					// 0 = floor 2, N_FLOORS = floor N_FLOORS.
 extern orderinfo_t commands[ MAX_N_ELEVATORS ][ N_FLOORS ];
-extern int targets[MAX_N_ELEVATORS];
+extern elevstatus_t elevators[MAX_N_ELEVATORS];
 
 typedef struct {
     int type;

@@ -24,13 +24,13 @@ message_create (message_t msg) {
 
         cJSON_AddItemToObject(call_up, "floor", floor=cJSON_CreateObject());
         cJSON_AddNumberToObject(floor, "number", i);
-        cJSON_AddNumberToObject(floor, "time", callUp[i].timeRegistered);
+        cJSON_AddNumberToObject(floor, "time", callUp[i].time_registered);
         cJSON_AddNumberToObject(floor, "registered", callUp[i].registered);
         cJSON_AddNumberToObject(floor, "targeted", callUp[i].targeted);
 
         cJSON_AddItemToObject(call_down, "floor", floor=cJSON_CreateObject());
         cJSON_AddNumberToObject(floor, "number", i);
-        cJSON_AddNumberToObject(floor, "time", callDown[i].timeRegistered);
+        cJSON_AddNumberToObject(floor, "time", callDown[i].time_registered);
         cJSON_AddNumberToObject(floor, "registered", callDown[i].registered);
         cJSON_AddNumberToObject(floor, "targeted", callDown[i].targeted);
     }
@@ -45,16 +45,16 @@ message_create (message_t msg) {
 
             cJSON_AddItemToObject(elev, "elevator", floor=cJSON_CreateObject());
             cJSON_AddNumberToObject(floor, "number", i);
-            cJSON_AddNumberToObject(floor, "time", commands[i][j].timeRegistered);
-            cJSON_AddNumberToObject(floor, "targeted", commands[i][j].targeted);
+            cJSON_AddNumberToObject(floor, "time", elevators[i].commands[j].time_registered);
+            cJSON_AddNumberToObject(floor, "targeted", elevators[i].commands[j].targeted);
         }
     }
 
     cJSON_AddNumberToObject(root, "timestamp", time(NULL));
-  
+
     out = cJSON_Print(root);
     cJSON_Delete(root);
-      
+
     return out;
 }
 

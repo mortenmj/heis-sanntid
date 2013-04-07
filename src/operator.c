@@ -4,21 +4,20 @@
 #include <pthread.h>
 
 #include "libheis/elev.h"
-
+#include "orderlist.h"
 #include "operator.h"
-
-#define SPEED 1000
-#define WAITTIME 100
-#define DOORTIME 3
 
 //Private variables:
 
 long int systemStartTime;
 
+extern int my_id;
+extern elevstatus_t elevators[MAX_N_ELEVATORS];
 
-bool obstructionStored;
-bool stopSignal;
-int floorStored;
+
+bool obstructionStored = 0;
+bool stopSignal = 0;
+int floorStored = -1;
 
 pthread_mutex_t mutexFloorStored;
 pthread_mutex_t mutexObstructionStored;
@@ -42,11 +41,12 @@ operator_store_obstruction_signal (int dummy, int value) {
 
 static void
 operator_store_floor_signal (int floor, int value) {
-	elev_set_floor_indicator(floor);
+	
 	pthread_mutex_lock(&mutexFloorStored);
 
 	if (value) {
 		floorStored = floor;
+		elev_set_floor_indicator(floor);
 	} else {
 		floorStored = -1;
 	}
@@ -102,6 +102,15 @@ operator_print_system_runtime (int mode) {
 	}
 }
 
+static void 
+operator_stop_elev(){
+	elev_set_speed(-SPEED);
+	usleep(WAITTIME);
+	elev_set_speed(SPEED);
+	usleep(WAITTIME);
+	elev_set_speed(0);
+}
+
 // Public functions:
 
 state_t
@@ -116,37 +125,57 @@ operator_init (void) {
     return state;
 }
 
+void
+operator_start_elev(){
+    if (operator_get_floor() == -1){
+   	    elev_set_speed(SPEED);
+   	    int stop = 0;
+	    while (operator_get_floor() == -1){		//Runs until floor reach
+		    if( operator_get_stop_signal() && stop == 0 ){ 		//emergency stop
+		        stop = 1;
+			    operator_stop_elev();
+			    operator_reset_stop_signal();
+			    printf("Press glowing button to start\n");
+			    elev_set_stop_lamp(1); //turns on glowing button
+		    }
+		    if(operator_get_stop_signal() && stop){ 				//emergency start...
+			    stop = 0;
+			    operator_reset_stop_signal();
+			    elev_set_stop_lamp(0);
+			    elev_set_speed(SPEED);
+		    }
+	    }
+	    operator_stop_elev();
+    }
+}
+
 state_t
-operator_elev (double floor, int *ptarget, state_t state) {  // tar in ptarget i stedenfor target for og kunne teste operatoren
-	int target=*ptarget;
+operator_elev (double floor, int target, state_t state) {  // tar in ptarget i stedenfor target for og kunne teste operatoren
 	static int doorTime; 
 
 	if (operator_get_stop_signal() != 0 && state != STOP) {
 		state = STOP;
-		elev_set_speed(0);
+		operator_stop_elev();
 		elev_set_stop_lamp(1);
 
-		// hjernen må vite at heisen er i nødstop
-		// I tilleg bør muligens commands slettes for denne heisen når man går inn i stop
-		*ptarget=-1;
 	} else {
 		switch(state){
 			case UP:
 				if(target == floor){
 					state = WAIT;
-					elev_set_speed(0);
+					operator_stop_elev();
 				}
 			break;
 
 			case DOWN:
 				if(target == floor && target > -1){
 					state = WAIT;
-					elev_set_speed(0);
-				};
+					operator_stop_elev();
+				}
 			break;
 
 			case WAIT:
-                //goes back into DOOR if obstruction.
+                		//goes back into DOOR if obstruction.
 				if (operator_get_obstruction_signal() == 0){
 					state = DOOR;
 					doorTime = time(NULL);
@@ -177,8 +206,9 @@ operator_elev (double floor, int *ptarget, state_t state) {  // tar in ptarget i
 				if ((int) (time(NULL)) >= doorTime + DOORTIME) { 	//waits DOORTIME secounds befor closing
 					state = WAIT;
 					elev_set_door_open_lamp(0);
-					*ptarget=-1;	// trenger en funktion som sier fra at at target har blit betjent
-				};
+					if (target == floor)					
+						orderlist_clear_targeteted_order(target);				// trenger en funktion som sier fra at at target har blit betjent
+				}
 			break;
 
 			case STOP:
@@ -247,12 +277,13 @@ operator_print_state (double floor, state_t state, int target) {
 			printf("State: \t\tSTOP\n");
 
 		printf("Target:\t\t%i \n", target);
-		printf("Current floor:\t%g \n", floor);
+		printf("Current floor:\t%f \n", floor);
 
 		operator_print_system_runtime(1);
 
 		printf("N_FLOORS: \t%i\n", N_FLOORS);
 		printf("Door time: \t%i sec\n", DOORTIME);
+		printf("priorety = %i", elevators[my_id].priority);
 		if(state == UP)
 			printf("Speed:\t\t%i\n", SPEED);
 		else if(state == DOWN)
@@ -260,4 +291,4 @@ operator_print_state (double floor, state_t state, int target) {
 		else
 			printf("Speed:\t\t0\n");
 		printf("------------------------------------\n");
-};
+}

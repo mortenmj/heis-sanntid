@@ -12,32 +12,27 @@ typedef enum {
     N_PRIORITIES
 } priority_t;
 
-typedef enum {
-	UP_DIR,
-	DOWN_DIR,
-    N_DIRS
-} dir_t;
-
 typedef struct {
-	int timeRegistered;
-	bool targeted;
-	bool registered;
+	int time_registered;             //dette må sendes
+	int targeted;                   //dette må sendes
+	bool registered;                //dette må sendes
 } orderinfo_t;
 
 typedef struct {
-	priority_t priority;
-	bool registered;
-	bool emergencyStop;
-    double floor;
+	priority_t priority;            //dette må sendes
+	bool emergency_stop;             //dette må sendes
+	double floor;                   //dette må sendes
+	int ip;
+	int time_registered;            //dette må sendes?
+	int target;                     //dette må sendes
+	int locked_target;              //dette må sendes
+	orderinfo_t commands[N_FLOORS]; //man trenger kunn og sende egene commands
 } elevstatus_t;
 
 void orderlist_init (void);
-int orderlist_register_elev (void);
-void orderlist_delete_elev (int elevator);
-void orderlist_clear_targeted_order (int target , int elevator, dir_t elevatorDir);
-int orderlist_register_call_up (int button);
-int orderlist_register_call_down (int button);
-int orderlist_register_call_order (int floor, int elevator);
-void orderlist_set_lights (double floor, int elevator);
+void orderlist_register_local_orders();
+void orderlist_clear_targeteted_order (int target);
+int orderlist_simple_update_targets();
+void orderlist_set_lights ();
 
 #endif
