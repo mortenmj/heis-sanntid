@@ -3,7 +3,7 @@ AM_CFLAGS = -std=c99 -lpthread -D_GNU_SOURCE
 bin_PROGRAMS = heis
 heis_SOURCES = \
 	comms.c comms.h \
-    messages.c messages.h \
+	messages.c messages.h \
 	queue.c queue.h \
 	debug.h \
 	main.c
