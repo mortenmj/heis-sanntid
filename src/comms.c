@@ -17,8 +17,7 @@
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
-
+#include <netinet/in.h> 
 #define BROADCAST_PORT 23981
 #define BROADCAST_PORT_STRING "23981"
 #define BROADCAST_GROUP "129.241.187.255"
@@ -93,8 +92,16 @@ comms_create_socket (void)
   return fd;
 }
 
+/*
+ * comms_listen:
+ *
+ * Checks socket for new data
+ *
+ * Returns: Number of bytes read
+ *
+ */
 int
-comms_listen (void)
+comms_listen (char** msg)
 {
 	int sockfd;
 	struct addrinfo hints, *servinfo, *p;
@@ -138,25 +145,20 @@ comms_listen (void)
 	}
 
 	freeaddrinfo(servinfo);
+//    comms_set_nonblocking(sockfd);
 
     addr_len = sizeof their_addr;
-    if ((numbytes = recvfrom(sockfd, buf, BUFLEN-1 , 0,
-        (struct sockaddr *)&their_addr, &addr_len)) == -1) {
+    numbytes = recvfrom(sockfd, buf, BUFLEN-1 , 0, (struct sockaddr *)&their_addr, &addr_len);
+
+    if (numbytes == -1 && EAGAIN != errno && EWOULDBLOCK != errno) {
         perror("recvfrom");
         exit(1);
     }
 
-    printf("listener: got packet from %s\n",
-        inet_ntop(their_addr.ss_family,
-            get_in_addr((struct sockaddr *)&their_addr),
-            s, sizeof s));
-    printf("listener: packet is %d bytes long\n", numbytes);
-    buf[numbytes] = '\0';
-    printf("listener: packet contains \"%s\"\n", buf);
-
     close(sockfd);
+    *msg = buf;
 
-	return 0;
+	return numbytes;
 }
 
 /*

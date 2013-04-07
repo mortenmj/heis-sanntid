@@ -6,7 +6,7 @@ heis_SOURCES = \
 	messages.c messages.h \
 	queue.c queue.h \
 	operator.c operator.h \
-	orderLists.c orderLists.h
+	orderlist.c orderlist.h \
 	debug.h \
 	main.c
 

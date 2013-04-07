@@ -1,12 +1,13 @@
 typedef enum {
-  UP = 1,
-	DOWN = 2,
-	WAIT = 3,
-	DOOR = 4,
-	STOP = 5
-} States; //state, DOWN = 2 ect.
+    UP,
+	DOWN,
+	WAIT,
+	DOOR,
+	STOP,
+    N_STATES
+} state_t;
 
-States elevatorOperator(double floor, int *ptarget , States state);
-States initializeOperator();
-double findFloor(double floorDouble, States state);
-void printState(double floorDouble, States state, int target);
+state_t operator_elev (double floor, int *ptarget , state_t state);
+state_t operator_init();
+double operator_find_floor (double floorDouble, state_t state);
+void operator_print_state (double floorDouble, state_t state, int target);
