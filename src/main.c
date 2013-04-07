@@ -21,12 +21,13 @@
 
 bool orders[N_ORDERS][N_FLOORS];
 void command_signal_callback (int floor, int value);
-int fd;
+int fdout, fdin;
 
 static void order_signal_callback (int floor, int value) {
-    unsigned char* msg = messages_create_order(floor, value);
+    message_t msg;
+    char* str = message_create(msg);
 
-    comms_send_data(msg);
+    comms_send_data(str);
 }
 
 int main()
@@ -37,11 +38,13 @@ int main()
 	int ret;
     int numbytes;
     char* msg;
-    order_t order;
+    message_t message;
 	
 
-	fd = comms_create_socket();
-    comms_set_nonblocking(fd);
+	fdout = comms_create_out_socket();
+	fdin = comms_create_in_socket();
+
+    comms_set_nonblocking(fdin);
 
 	if (!elev_init()) {
 		exit(1);
@@ -56,16 +59,17 @@ int main()
 
 	ret = elev_enable_callbacks();
 	
-	while(1){
-        if ((numbytes = comms_listen(&msg)) > 0) {
-            msg[numbytes] = '\0';
-            order = messages_parse_order(msg);
+	while(1) {
+        //comms_send_data(messages_create_heartbeat()); 
 
-            printf("order type: %d, order floor %d\n", order.type, order.floor);
+        if ((numbytes = comms_listen(fdin, &msg)) > 0) {
+            msg[numbytes] = '\0';
+            printf("%s\n", msg);
+            //message = messages_parse(msg);
         }
 
 		floor = operator_find_floor(floor, state);
-		state = operator_elev(floor,&target, state);
+		state = operator_elev(floor, &target, state);
 
         //printf("%c[2J",27);
 		//operator_print_state(floor,state, target);
