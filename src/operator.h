@@ -1,5 +1,5 @@
 typedef enum {
-    UP,
+	UP,
 	DOWN,
 	WAIT,
 	DOOR,

@@ -224,6 +224,15 @@ operator_find_floor (double floorDouble, state_t state) {
 	return floorDouble;
 }
 
+/*
+ * operator_set_stop_signal
+ * floor: The current floor
+ * state: The current state of the system
+ * target: The target of the system
+ *
+ * Function to pretty print the state of the system
+ *
+ */
 void 
 operator_print_state (double floor, state_t state, int target) {
 		if(state == UP)

@@ -67,12 +67,13 @@ int main()
             printf("%s\n", msg);
             //message = messages_parse(msg);
         }
+        //comms_listen();
 
-		floor = operator_find_floor(floor, state);
-		state = operator_elev(floor, &target, state);
+	floor = operator_find_floor(floor, state);
+	state = operator_elev(floor,&target, state);
 
         //printf("%c[2J",27);
-		//operator_print_state(floor,state, target);
+	//operator_print_state(floor,state, target);
 
         usleep(1000);
 	};
