@@ -1,9 +1,3 @@
-//BUILD AN ENTIRE SOCKET LIBRARY (MODULE) WITH METHODS LIKE 
-//  RECEIVE(...), 
-//  CONNECT(...), 
-//  LISTEN(...), 
-//
-
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -18,18 +12,17 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h> 
+
 #define BROADCAST_PORT 23981
 #define BROADCAST_PORT_STRING "23981"
 #define BROADCAST_GROUP "129.241.187.255"
-#define BUFLEN 512
+#define BUFLEN 4096
 
-int fd;
+int fdout, fdin;
 struct sockaddr_in addr;
-socklen_t addrlen;
 
 // get sockaddr, IPv4 or IPv6:
-static void *get_in_addr(struct sockaddr *sa)
-{
+static void *get_in_addr(struct sockaddr *sa) {
 	if (sa->sa_family == AF_INET) {
 		return &(((struct sockaddr_in*)sa)->sin_addr);
 	}
@@ -44,8 +37,7 @@ static void *get_in_addr(struct sockaddr *sa)
  *
  */
 void
-comms_set_blocking (int sock)
-{
+comms_set_blocking (int sock) {
   int flags;
 
   flags = fcntl(sock, F_GETFL, 0);
@@ -60,8 +52,7 @@ comms_set_blocking (int sock)
  *
  */
 void
-comms_set_nonblocking (int sock)
-{
+comms_set_nonblocking (int sock) {
   int flags;
 
   flags = fcntl(sock, F_GETFL, 0);
@@ -69,47 +60,37 @@ comms_set_nonblocking (int sock)
 }
 
 int
-comms_create_socket (void)
-{
-  if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-      perror("sock");
-      exit(1);
-  }
+comms_create_out_socket (void) {
+    socklen_t addrlen;
 
-  int broadcast = 1;
-  if (setsockopt(fd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) == -1) {
-      perror("setsockopt (SO_BROADCAST)");
-      exit(1);
-  }
+    if ((fdout = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+        perror("sock");
+        exit(1);
+    }
 
-  addrlen = sizeof addr;
+    int broadcast = 1;
+    if (setsockopt(fdout, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) == -1) {
+        perror("setsockopt (SO_BROADCAST)");
+        exit(1);
+    }
 
-  memset(&addr, 0, addrlen);
-  addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = inet_addr(BROADCAST_GROUP);
-  addr.sin_port = htons(BROADCAST_PORT);
+    addrlen = sizeof addr;
 
-  return fd;
+    memset(&addr, 0, addrlen);
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = inet_addr(BROADCAST_GROUP);
+    addr.sin_port = htons(BROADCAST_PORT);
+
+    return fdout;
 }
 
-/*
- * comms_listen:
- *
- * Checks socket for new data
- *
- * Returns: Number of bytes read
- *
- */
 int
-comms_listen (char** msg)
-{
+comms_create_in_socket (void) {
 	int sockfd;
 	struct addrinfo hints, *servinfo, *p;
 	int rv;
 	int numbytes;
-	struct sockaddr_storage their_addr;
-	char buf[BUFLEN];
-	socklen_t addr_len;
+	socklen_t addrlen;
 	char s[INET6_ADDRSTRLEN];
 
 	memset(&hints, 0, sizeof hints);
@@ -120,8 +101,7 @@ comms_listen (char** msg)
 	if ((rv = getaddrinfo(NULL, BROADCAST_PORT_STRING, &hints, &servinfo)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
 		return 1;
-	}
-
+	} 
 	// loop through all the results and bind to the first we can
 	for(p = servinfo; p != NULL; p = p->ai_next) {
 		if ((sockfd = socket(p->ai_family, p->ai_socktype,
@@ -130,6 +110,7 @@ comms_listen (char** msg)
 			continue;
 		}
 
+        addrlen = sizeof addr;
 		if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
 			close(sockfd);
 			perror("listener: bind");
@@ -145,17 +126,33 @@ comms_listen (char** msg)
 	}
 
 	freeaddrinfo(servinfo);
-//    comms_set_nonblocking(sockfd);
 
-    addr_len = sizeof their_addr;
-    numbytes = recvfrom(sockfd, buf, BUFLEN-1 , 0, (struct sockaddr *)&their_addr, &addr_len);
+    return sockfd;
+}
+
+/*
+ * comms_listen:
+ *
+ * Checks socket for new data
+ *
+ * Returns: Number of bytes read
+ *
+ */
+int
+comms_listen (int fd, char** msg) {
+    int numbytes;
+	char buf[BUFLEN];
+	struct sockaddr_storage their_addr;
+    socklen_t addrlen;
+  
+    addrlen = sizeof addr;
+    numbytes = recvfrom(fd, buf, BUFLEN-1 , 0, (struct sockaddr *)&their_addr, &addrlen);
 
     if (numbytes == -1 && EAGAIN != errno && EWOULDBLOCK != errno) {
         perror("recvfrom");
         exit(1);
     }
 
-    close(sockfd);
     *msg = buf;
 
 	return numbytes;
@@ -165,24 +162,24 @@ comms_listen (char** msg)
  * comms_send_data:
  * socket: Socket descriptor
  * data: The data to be sent
- * len: Length of the data to be sent
- *
+ * len: Length of the data to be sent *
  * Function to send data over a socket.
  *
  * Returns: Number of bytes sent
  */
 
 int
-comms_send_data (unsigned char* msg)
-{
-  int bytes_sent = 0;
-  int len = strlen(msg);
+comms_send_data (unsigned char* msg) {
+    int bytes_sent = 0;
+    int len = strlen(msg);
+    socklen_t addrlen;
 
-  if (sizeof(msg) == 0) {
-      return 0;
-  }
+    if (sizeof(msg) == 0) {
+        return 0;
+    }
 
-  bytes_sent = sendto(fd, msg, len, 0, (struct sockaddr *) &addr, sizeof(addr));
+    addrlen = sizeof addr;
+    bytes_sent = sendto(fdout, msg, len, 0, (struct sockaddr *) &addr, sizeof(addr));
 
-  return bytes_sent;
+    return bytes_sent;
 }
