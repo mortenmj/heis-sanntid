@@ -1,244 +1,212 @@
+#include <math.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <time.h>
+#include <pthread.h>
 #include <libheis/elev.h>
 
 #include "orderlist.h"
 
+int my_id;
 
-orderinfo_t callUp[ N_FLOORS-1 ]; 					// 0 = floor 1, N_FLOORS = floor N_FLOORS - 1.
-orderinfo_t callDown[ N_FLOORS-1 ];					// 0 = floor 2, N_FLOORS = floor N_FLOORS.
-orderinfo_t commands[ MAX_N_ELEVATORS ][ N_FLOORS ];
+orderinfo_t callUp[N_FLOORS-1];					    // 0 = floor 1, N_FLOORS = floor N_FLOORS - 1.
+orderinfo_t callDown[N_FLOORS-1];					    // 0 = floor 2, N_FLOORS = floor N_FLOORS.
+elevstatus_t elevators[MAX_N_ELEVATORS];
 
-int targets[MAX_N_ELEVATORS];
+static bool callUp_mutexed[N_FLOORS-1];				// 0 = floor 1, N_FLOORS = floor N_FLOORS - 1.
+static bool callDown_mutexed[N_FLOORS-1];				// 0 = floor 2, N_FLOORS = floor N_FLOORS.
+static bool commands_mutexed[N_FLOORS];
 
-elevstatus_t activeElevators[MAX_N_ELEVATORS];
+pthread_mutex_t mutex_callUp;
+pthread_mutex_t	mutex_callDown;
+pthread_mutex_t mutex_commands;
 
-void
-orderlist_init (void) {
-	for (int i; i < (N_FLOORS-1) ; i++){
-		callUp[i].timeRegistered = 0;
-		callUp[i].registered = false;
-		callUp[i].targeted = false; 					
+//=====================================================PRIVATE FUNCTIONS==================================================
 
-		callDown[i].timeRegistered = 0;
-		callDown[i].registered = false;
-		callDown[i].targeted = false;
-	}
-
-	for (int j; j < MAX_N_ELEVATORS; j++){
-		for (int i; i < N_FLOORS; i++){
-			commands[j][i].timeRegistered = 0;
-			commands[j][i].registered = false;	// strengt tatt trenger vi ikke 
-			commands[j][i].targeted = false;
-		}
-
-		targets[j] = -1;
-
-		activeElevators[j].emergencyStop = false;
-		activeElevators[j].registered = false;
-		activeElevators[j].priority = NONE;
-	}
+static void 
+orderlist_mutexed_get_call_up (int button, int dummy) {
+	pthread_mutex_lock(&mutex_callUp);
+	callUp_mutexed[button] = true;
+	pthread_mutex_unlock(&mutex_callUp);
 }
 
-
-int
-orderlist_register_elev (void) {
-    int i;
-
-	for (i = 0; i < MAX_N_ELEVATORS; i++) {
-		if (activeElevators[i].registered == false) {
-
-			activeElevators[i].registered = true;
-			activeElevators[i].emergencyStop = false;
-			activeElevators[i].priority = NONE;
-
-			break;
-		}
-	}
-
-	return i;
+static void
+orderlist_mutexed_get_call_down (int floor, int dummy) {
+	pthread_mutex_lock(&mutex_callDown);
+	callDown_mutexed[floor-1] = true;
+	pthread_mutex_unlock(&mutex_callDown);
 }
 
-void
-orderlist_delete_elev (int elevator) {
-	activeElevators[elevator].emergencyStop = false;
-	activeElevators[elevator].registered = false;
-	activeElevators[elevator].priority = NONE;
-
-	for (int i=0; i<N_FLOORS; i++){
-		commands[elevator][i].timeRegistered=0;
-		commands[elevator][i].targeted=0;
-		commands[elevator][i].registered=0;
-	}
+static void
+orderlist_mutexed_get_command (int button, int dummy) {
+	pthread_mutex_lock(&mutex_commands);
+	commands_mutexed[button] = true;
+	pthread_mutex_unlock(&mutex_commands);
 }
 
+//=========================================================== PUBLIC FUNCTIONS =================================================
 // dir bestemmer om callUp eller CalDown skal slettes,
+
 void
-orderlist_clear_targeteted_order (int target, int elevator, dir_t elevatorDir) {
-	// finnes ikke i etasje N_FLOORS - 1;
-	if (target < (N_FLOORS - 1) && elevatorDir) {
-		callUp[target].timeRegistered = 0;
-		callUp[target].targeted = 0;
-		callUp[target].registered = 0;
+orderlist_clear_targeteted_order (int target) {
+	if ( target < (N_FLOORS - 1) && elevators[my_id].priority == UPWARD ) {
+		callUp[target].time_registered = -1;
+		callUp[target].targeted = -1;
+		callUp[target].registered = false;
 
-    // finnes ikke i etasje  0
-	} else if (target > 0 && !elevatorDir) {
-		callDown[target].timeRegistered = 0;
-		callDown[target].targeted = 0;
-		callDown[target].registered = 0;
-	}
 
-	commands[elevator][target].timeRegistered=0;
-	commands[elevator][target].targeted=0;
-	commands[elevator][target].registered=0;
-
-	targets[elevator] = -1;
-}; 
-
-int
-orderlist_register_call_up (int button) {
-	if(!callUp[button].registered) {
-		callUp[button].timeRegistered = time(NULL);
-		callUp[button].registered = true;
-		callUp[button].targeted = false;
-
-		return 1;
-	}
-
-	return 0;
+	} else if (target > 0 && elevators[my_id].priority == DOWNWARD) {
+		callDown[target-1].time_registered = -1;
+		callDown[target-1].targeted = -1;
+		callDown[target-1].registered = false;
+    }
+    
+	elevators[my_id].commands[target].time_registered = -1;
+	elevators[my_id].commands[target].targeted = -1;
+	elevators[my_id].commands[target].registered = false;
+	elevators[my_id].target = -1;
 }
 
-int
-orderlist_register_call_down (int button) {
-	if(!callDown[button].registered) {
-		callDown[button].timeRegistered = time(NULL);
-		callDown[button].registered = true;
-		callDown[button].targeted = false;
-
-		return 1;
-	}
-
-	return 0;
-}
-
-int
-orderlist_register_call (int floor, int elevator) {
-	if(!commands[elevator][floor].registered) {
-		commands[elevator][floor].timeRegistered = time(NULL);
-		commands[elevator][floor].registered = true;
-		commands[elevator][floor].targeted = false;
-
-		return 1;
-	}
-
-	return 0;
-}
-
-// jeg beholder denne fordi callDown og callUpp kan bli satt av andre heiser
 void
-orderlist_set_lights (double floor, int elevator) {
+orderlist_register_local_orders (void) {
+	pthread_mutex_lock(&mutex_commands);
+	
+	for (int button=0; button < N_FLOORS; button++) {
+		if (commands_mutexed[button]) {
+
+			if (!elevators[my_id].commands[button].registered) {
+				elevators[my_id].commands[button].time_registered = time(NULL);
+				elevators[my_id].commands[button].targeted = -1;
+			}
+
+			elevators[my_id].commands[button].registered = true;
+			commands_mutexed[button] = false;
+		}
+	}
+	
+	pthread_mutex_unlock(&mutex_commands);
+
+	pthread_mutex_lock(&mutex_callDown);
+	for (int button=0; button < N_FLOORS-1; button++){
+		if (callDown_mutexed[button]) {
+			if (!callDown[button].registered) {
+				callDown[button].time_registered = time(NULL);
+				callDown[button].targeted = -1;
+			}
+
+			callDown[button].registered = true;
+			callDown_mutexed[button] = false;
+		}
+	}
+	pthread_mutex_unlock(&mutex_callDown);
+
+
+	pthread_mutex_lock(&mutex_callUp);
+	for (int button=0; button < N_FLOORS-1; button++) {
+		if (callUp_mutexed[button]) {
+			if (callUp[button].registered == false) {
+				callUp[button].time_registered = time(NULL);
+				callUp[button].targeted = -1;
+			}
+
+			callUp[button].registered = true;
+			callUp_mutexed[button] = false;
+		}
+	}
+	pthread_mutex_unlock(&mutex_callUp);
+}
+
+void
+orderlist_set_lights (void) {
 	for (int i = 0; i < (N_FLOORS -1); i++){
         elev_set_button_lamp(ELEV_DIR_UP, i, callUp[i].registered );
         elev_set_button_lamp(ELEV_DIR_DOWN, i + 1, callDown[i].registered );
-        elev_set_button_lamp(ELEV_DIR_COMMAND, i, commands[elevator][i].registered );
+        elev_set_button_lamp(ELEV_DIR_COMMAND, i, elevators[my_id].commands[i].registered );
 	}
 
-	elev_set_button_lamp(ELEV_DIR_COMMAND, (N_FLOORS - 1), commands[elevator][N_FLOORS - 1].registered );
+	elev_set_button_lamp(ELEV_DIR_COMMAND, (N_FLOORS - 1), elevators[my_id].commands[N_FLOORS - 1].registered );
 }
 
-int
-orderlist_find_closest_command_under (double floor, int elevator) {
-	for (int i = floor; i >= 0; i--) {
-		if (commands[elevator][i].registered) {
-			return i;
+void
+orderlist_init (void) {
+	for (int i=0; i < (N_FLOORS-1) ; i++){
+		callUp[i].time_registered = 0;
+		callUp[i].registered = false;
+		callUp[i].targeted = -1;
+		callUp_mutexed[i] = false;
+
+		callDown[i].time_registered = 0;
+		callDown[i].registered = false;
+		callDown[i].targeted = -1;
+		callDown_mutexed[i] = false;
+
+		commands_mutexed[i] = false;
+	}
+	commands_mutexed[N_FLOORS-1] = false;
+
+	for (int elev=0; elev < MAX_N_ELEVATORS; elev++){
+		for (int i=0; i < N_FLOORS; i++){
+			elevators[elev].commands[i].time_registered = 0;
+			elevators[elev].commands[i].registered = false;
+			elevators[elev].commands[i].targeted = -1;
 		}
+
+		elevators[elev].emergency_stop = false;
+		elevators[elev].priority = NONE;
+		elevators[elev].floor = 0;
+		elevators[elev].target = -1;
+		elevators[elev].locked_target = -1;
+		elevators[elev].time_registered = -1;
+		elevators[elev].ip = -1;
+
 	}
 
-	return -1;	//list is empty
-}
-int
-orderlist_find_closest_command_above (double floor, int elevator) {
-	for (int i = floor; i < N_FLOORS; i++) {
-		if (commands[elevator][i].registered)
-			return i;
-	}
-
-	return -1;	//list is empty
-}
-
-int
-orderlist_find_closest_up_call_under (double floor) {
-	for (int i = floor; i >= 0; i--){
-		if (i != N_FLOORS -1){		//list only goes to N_FLOORS - 2
-			if ( (callUp[i].registered == true) && (callUp[i].targeted == false))
-				return i;
-		}
-	}
-
-	return -1;	//list is empty
-}
-
-int 
-orderlist_find_closest_up_call_above (double floor) {
-	for (int i = floor + 0.5; i < (N_FLOORS - 1); i++){
-		if ( (callUp[i].registered == true) && (callUp[i].targeted == false) )
-			return i;
-	}
-	return -1;	//list is empty
+	elev_register_callback( SIGNAL_TYPE_CALL_UP, &orderlist_mutexed_get_call_up );
+	elev_register_callback( SIGNAL_TYPE_CALL_DOWN, &orderlist_mutexed_get_call_down );
+	elev_register_callback( SIGNAL_TYPE_COMMAND, &orderlist_mutexed_get_command );
 }
 
 int
-orderlist_find_closest_down_call_under (double floor) {
-	for (int i = floor; i > 0; i--){			//list only goes to N_FLOORS - 2
-			if ( (callDown[i - 1].registered == true) && (callDown[i - 1].targeted == true) )
-				return i; 						//becouse 0 = floor 1 in other lists
-	}
-	return -1;	//list is empty
-}
+orderlist_simple_update_targets (void) {
+    for (int elevator = 0; elevator< MAX_N_ELEVATORS; elevator++) {
 
-int
-orderlist_find_closest_down_call_above (double floor) {
-	for (int i = floor; i < N_FLOORS - 1; i++){
-		if ( (callDown[i].registered == true) && (callDown[i].targeted == true) )
-			return i + 1;						//becouse 0 = floor 1 in other lists
-	}
-	return -1;	//list is empty
-}
+        if (elevators[elevator].time_registered == -1 ) {
+            break;
+        } else if(elevators[elevator].target == -1) {
+            for(int floor = 0; floor < N_FLOORS; floor++) {
+                if( elevators[elevator].commands[floor].registered && elevators[elevator].commands[floor].targeted == -1 ) {
+                    
+                    elevators[elevator].commands[floor].targeted = elevator;
+                    elevators[elevator].priority = NONE;
+                    elevators[elevator].target = floor;
+                    printf("command\n");
 
-int
-orderlist_find_closest_call_above (double floor) {
-	int temp = orderlist_find_closest_down_call_above(floor);
-	int temp2 = orderlist_find_closest_up_call_above(floor);
-	
-	if(temp == -1){
-		return temp2;
-	}else if(temp2 == -1){
-		return temp;
-	}
-	
-	if (abs(floor - temp) < abs(floor - temp2)){
-		return temp;
-	}else{
-		return temp2;
-	}
-}
+                    return elevators[my_id].target;
+                }
+            }
+            for (int floor = 0; floor < N_FLOORS-1; floor++) {
+                if (callUp[floor].registered && callUp[floor].targeted == -1) {
+                    callUp[floor].targeted = elevator;
+                    elevators[elevator].target = floor;
+                    elevators[elevator].priority = UPWARD;
+                    printf("callUp\n");
 
-int
-orderlist_find_closest_call_under (double floor) {
-	int temp = orderlist_find_closest_down_call_under(floor);
-	int temp2 = orderlist_find_closest_up_call_under(floor);
-	
-	if(temp == -1){
-		return temp2;
-	}else if(temp2 == -1){
-		return temp;
-	}
-	
-	if (abs(floor - temp) < abs(floor - temp2)){
-		return temp;
-	}else{
-		return temp2;
-	}
+                    return elevators[my_id].target;
+                }
+            }
+            for (int floor = 0; floor < N_FLOORS-1; floor++) {
+                if (callDown[floor].registered && callDown[floor].targeted == -1) {
+                    callDown[floor].targeted = elevator;
+                    elevators[elevator].target = floor+1;
+                    elevators[elevator].priority = DOWNWARD;
+                    printf("callDown\n");
+
+                    return elevators[my_id].target;
+                }
+            }
+        }
+    }
+    
+    return elevators[my_id].target;
 }
