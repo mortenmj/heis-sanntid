@@ -18,7 +18,7 @@ void orderlist_set_lights (void);
 elevator_t *orderlist_get_local_elevator (void);
 order_t orderlist_get_local_order (int floor, order_type_t type);
 void orderlist_set_local_order (int floor, order_type_t type, bool value);
-int orderlist_sync (int fd);
+void orderlist_sync (int fd);
 void orderlist_print_lists(void);
 void orderlist_commands_to_file ();
 

@@ -44,6 +44,7 @@ target_find_closest_command_under (double floor) {
 			return i;
 		}
 	}
+
 	return -1;	//list is empty
 }
 
@@ -54,6 +55,7 @@ target_find_closest_command_above (double floor) {
 		if (local->commands[i].registered == true)
 			return i;
 	}
+
 	return -1;	//list is empty
 }
 
@@ -66,6 +68,7 @@ target_find_closest_call_up_under (double floor) {
 			}
 		}
 	}
+
 	return -1;	//list is empty
 }
 
@@ -76,6 +79,7 @@ target_find_closest_call_up_above (double floor) {
 			return i;
 		}
 	}
+
 	return -1;	//list is empty
 }
 
@@ -85,6 +89,7 @@ target_find_closest_call_down_under (double floor) {
 			if (orderlist_get_local_order(i-1, ORDER_DOWN).registered == true)
 				return i; 						//becouse 0 = floor 1 in other lists
 	}
+
 	return -1;	//list is empty
 }
 
@@ -97,6 +102,7 @@ target_find_closest_call_down_above (double floor) {
 		if (orderlist_get_local_order(i-1, ORDER_DOWN).registered == true)
 			return i;						//becouse 0 = floor 1 in other lists
 	}
+
 	return -1;	//list is empty
 }
 
@@ -234,49 +240,51 @@ static int
 target_find_priority_or_target (int temp_target_above, int temp_target_under, double floor, int return_mode) {
 	int temp_target = -1;
 	int temp_priority = NONE;
-	if( (temp_target_above == -1) ^ (temp_target_under == -1) ) { 	//if one of the lists are emptry
+	if( (temp_target_above == -1) ^ (temp_target_under == -1) ) { 	// if one of the lists are emptry
 
-		if (temp_target_above == -1){
+		if (temp_target_above == -1) {
 			temp_target = temp_target_under;
-			temp_priority = DOWNWARD; 				//DOWNWARD;
-		}else{								//targetUnder has to be empty
+			temp_priority = DOWNWARD; 				                // DOWNWARD;
+		} else{								                        // targetUnder has to be empty
 			temp_target = temp_target_above;
-			temp_priority = UPWARD; 				//UPWARD;
+			temp_priority = UPWARD; 				                // UPWARD;
 		}
 	
-	}else if ( (temp_target_above != -1) && (temp_target_under != -1) ){				//if there are targets in both lists.
+	} else if ((temp_target_above != -1) && (temp_target_under != -1)) {				//if there are targets in both lists.
 
-		if ( abs(floor - temp_target_above) == abs(floor - temp_target_under)){ 		//if distance is equal:
+		if (abs(floor - temp_target_above) == abs(floor - temp_target_under)) { 		//if distance is equal:
 
-			if(floor == (double)(N_FLOORS - 1) / (double)2 ){										//if elevator is in center, down is temp_priority ((N_FLOORS - 1) / 2) = 1.5
+			if (floor == (double)(N_FLOORS - 1) / (double)2 ) {		    				//if elevator is in center, down is temp_priority ((N_FLOORS - 1) / 2) = 1.5
 				temp_target = temp_target_under;
 				temp_priority = DOWNWARD;		
-			}else if (floor > ((N_FLOORS - 1) / 2)){		//if temp_target above is closest to edge
+			} else if (floor > ((N_FLOORS - 1) / 2)) {		                            // if temp_target above is closest to edge
 				temp_target = temp_target_above;
 				temp_priority = UPWARD;
-			}else{
+			} else {
 				temp_target = temp_target_under;
 				temp_priority = DOWNWARD;
 			}
 
-		}else if (abs(floor - temp_target_above) > abs(floor - temp_target_under)){
+		} else if (abs(floor - temp_target_above) > abs(floor - temp_target_under)) {
 			temp_target = temp_target_under;
 			temp_priority = 2;	
-		}else{									
+		} else {
 			temp_target = temp_target_above;
 			temp_priority = UPWARD;	
 		}
 	}
-	if(return_mode == 1){
+
+	if(return_mode == 1) {
 		return temp_target;
-	}else if(return_mode == 0){
+	} else if(return_mode == 0) {
 		return temp_priority;
 	}
 	return 0;
 }
 
 static int
-target_value_upward_or_downward_elev (double floor, int value) { if(floor > value) {
+target_value_upward_or_downward_elev (double floor, int value) {
+    if(floor > value) {
         return DOWNWARD;
     } else if (floor < value){
         return UPWARD;
@@ -286,29 +294,14 @@ target_value_upward_or_downward_elev (double floor, int value) { if(floor > valu
 }
 
 static double
-target_find_closest_elev(double floor, priority_t priority){
+target_find_closest_elev(double floor, priority_t priority) {
 	elevator_t *local = orderlist_get_local_elevator();
 	
 	switch(priority) {
 		case UPWARD:
-		  //printf("find closest elev\n");
           for (int i = 0; i < MAX_N_ELEVATORS; i++) {
-              /*
-              printf("remote elevator: %d\n", i);
-              printf("remote elevator floor: %.2f\n", elevators[i].floor);
-              printf("remote elevator addr: %ld\n", (unsigned long)elevators[i].addr.s_addr);
-              */
-              printf("remote elevator pri: %d\n", elevators[i].priority);
-              if ((unsigned long)elevators[i].addr.s_addr != 0) {
-                  printf("1\n");
-                  if (floor < elevators[i].floor) {
-                      printf("2\n");
-                      if (elevators[i].priority == UPWARD) {
-                          printf("3\n");
-                          printf("upward: %.2f\n", elevators[i].floor);
-                          return elevators[i].floor;
-                      }
-                  }
+              if (((unsigned long)elevators[i].addr.s_addr != 0) && (floor < elevators[i].floor) && (elevators[i].priority == UPWARD)) {
+                  return elevators[i].floor;
               }
           }
           break;
@@ -316,19 +309,18 @@ target_find_closest_elev(double floor, priority_t priority){
         case DOWNWARD:
           for (int i = 0; i < MAX_N_ELEVATORS; i++) {
               if (floor > elevators[i].floor && elevators[i].priority == DOWNWARD && elevators[i].addr.s_addr != 0) {
-                  printf("downward: %.2f\n", elevators[i].floor);
                   return elevators[i].floor;
               }
           }
           break;
 
         default:
-        	printf("find_closest_elev: returning -1\n");
 	        return -1;
     }
     
     return -1;
 }
+
 /* Public functions */
 
 /*
@@ -347,12 +339,9 @@ int target_update (double floor) {
 	int temp_call;
     int closest_elev;
     elevator_t *local = orderlist_get_local_elevator();
-    
-    /* FIXME: This is very ugly */
     local->floor = floor;
 
 	switch (local->priority) {
-		
 		case LOCKONOUTSIDE:
 		    temp_target_above = target_find_closest_call_above(floor, TARGET);
 			temp_target_under = target_find_closest_call_under(floor, TARGET);
@@ -384,8 +373,6 @@ int target_update (double floor) {
                 target = temp_command;
             }
 
-            
-
 			if(target == -1) {
 				local->priority=NONE;	
             }
@@ -402,8 +389,6 @@ int target_update (double floor) {
             } else {
                 target = temp_command;
             }
-			
-			
 			
 			if(target == -1) {
 				local->priority=NONE;
@@ -439,7 +424,6 @@ int target_update (double floor) {
 			    local->priority = LOCKONOUTSIDE;
 			    
 			}
-			//target = -1; // strengt tatt er denne ikke nødvendig
 			
 			break;
 	}

@@ -72,9 +72,6 @@ int main (void)
         floor = operator_get_floor();
         target = target_update(floor);
 		operator_update (floor, target);
-
-		//orderlist_print_lists();
-		//operator_print_state(floor, target);
 		orderlist_set_lights();
 	}
 

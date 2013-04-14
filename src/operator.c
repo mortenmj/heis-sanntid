@@ -10,7 +10,7 @@
 #include "target.h"
 #include "types.h"
 
-//Private variables:
+/* Private variables */
 
 long int systemStartTime;
 
@@ -27,7 +27,7 @@ pthread_mutex_t mutexObstructionStored;
 pthread_mutex_t mutexStopSignal;
 pthread_mutex_t mutexState;
 
-//Private functions:
+/* Private functions */
 
 static state_t
 operator_get_state (void)
@@ -275,19 +275,20 @@ operator_update (double floor, int target) {  // tar in ptarget i stedenfor targ
 					doorTime = time(NULL);
                 }
 
-				if ((int) (time(NULL)) >= doorTime + DOORTIME) { 	//waits DOORTIME secounds befor closing
+                /* waits DOORTIME secounds befor closing door */
+				if ((int) (time(NULL)) >= doorTime + DOORTIME) {
                     printf("in DOOR, going to WAIT\n");
 					s = WAIT;
 					elev_set_door_open_lamp(0);
 					if (target == (int)floor) {
                         printf("clearing completed orders\n");
-						target_clear_completed_order();				// trenger en funktion som sier fra at at target har blit betjent
+						target_clear_completed_order();
                     }
 				}
 			break;
 
 			case STOP:
-                //if elevator has a target, then it will go out of NØD_STOP
+                /* if elevator has a target, then it will go out of emergency stop */
 				if (target > floor && target != -1) {
                     printf("in STOP, going to UP\n");
 					s = UP;
@@ -315,7 +316,6 @@ operator_update (double floor, int target) {  // tar in ptarget i stedenfor targ
 		}
 	}
 
-    //printf("setting state to %d\n", s);
     operator_set_state(s);
 }
 

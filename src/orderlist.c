@@ -14,14 +14,14 @@
 
 int my_id;
 
-order_t callUp[N_FLOORS-1];					    // 0 = floor 1, N_FLOORS = floor N_FLOORS - 1.
-order_t callDown[N_FLOORS-1];					    // 0 = floor 2, N_FLOORS = floor N_FLOORS.
+order_t callUp[N_FLOORS-1];
+order_t callDown[N_FLOORS-1];
 elevator_t elevators[MAX_N_ELEVATORS];
 
 elevator_t local_elevator;
 
-static bool callUp_mutexed[N_FLOORS-1];				// 0 = floor 1, N_FLOORS = floor N_FLOORS - 1.
-static bool callDown_mutexed[N_FLOORS-1];				// 0 = floor 2, N_FLOORS = floor N_FLOORS.
+static bool callUp_mutexed[N_FLOORS-1];
+static bool callDown_mutexed[N_FLOORS-1];
 static bool commands_mutexed[N_FLOORS];
 
 pthread_mutex_t mutex_call;
@@ -88,15 +88,16 @@ orderlist_find_ip_less_than (struct in_addr addr, priority_t priority) {
     return false; 
 }
 
+
+/* finn heisen i elevators
+ * om vi kommer til en heis med addresse -1 er den slettet;
+ * om ikke funnet, legg til sist
+ * oppdater informasjon
+ * return true if a new elevator was added
+ * return false if i uppdated or nothing was done
+ */
 static int
 orderlist_update_remote_elev (struct in_addr addr, elevator_t* s) {
-    // finn heisen i elevators
-    // om vi kommer til en heis med addresse -1 er den slettet;
-    // om ikke funnet, legg til sist
-    // oppdater informasjon
-    // return true if a new elevator was added
-    // return false if i uppdated or nothing was done
-
     /* Find the elevator we're looking for, if we did not find it look for a empty spot to store the new elevator */
 	for (int i = 0; i < MAX_N_ELEVATORS; i++) {
         if (elevators[i].addr.s_addr == addr.s_addr) {
@@ -437,8 +438,7 @@ orderlist_set_local_order (int floor, order_type_t type, bool value) {
     pthread_mutex_unlock(&mutex_call);
 }
 
-/* Return 0 if orderlist is synchronised successfully */
-int
+void
 orderlist_sync (int fd) {
 	int numbytes;
 	char* msg;
@@ -449,20 +449,7 @@ orderlist_sync (int fd) {
     while (!synced) {
         for (int i = 0; i < 2;i++) {
         numbytes = comms_listen(fd, &msg);
-        /*
-         * når 2 heiser broadcaster på nettverket må det leses to ganger
-         * på begge. er ikke helt sikker på hva som sjer. selv om vi
-         * ignorer egne beskjeder hjalp dette. Kanskje det hoper seg opp av
-         * gamle beskjeder om vi ikke gjør dette. sletting av target funker
-         * ikke helt uten for 2 løkke så virker det hvertfall som systemet
-         * motar en hel del besjeder med callUp informasjon som er gamle.
-         * jo lengre man venter med og trykke på en knapp etter at man har
-         * startet systemet jo lengre tid tar det før den andre heisen
-         * plukker opp opdateringen syncronisering av slettet target
-         * funker ikke helt med koden min	
-        */
 
-        
         if (numbytes > 0) {
             msg[numbytes] = '\0'; message_parse_status(m, msg);
         
@@ -478,22 +465,14 @@ orderlist_sync (int fd) {
 
         msg = message_create_status();
         comms_send_data(msg);
-        
-        /*
-        printf("\033[2J\033[1;1H"); 
-        orderlist_print_lists();
-        printf("1\n"); printf("synced %d\n",synced);
-        */
-		
 	}
+
 	usleep(1000);
 	
 	orderlist_reset_synced_list();
     local_elevator.global_sync = false;
 
 	free(m);
-
-	return 0;
 }
   
 void orderlist_print_lists(void){

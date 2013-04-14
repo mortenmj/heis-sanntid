@@ -14,11 +14,12 @@ typedef enum {
 } priority_t;
 
 typedef enum {
-    COMMAND,
-    CALLUP,
-    CALLDOWN,
-    N_TARGET
-} targettype_t;
+    TYPE_COMMAND,
+    TYPE_CALL_UP,
+    TYPE_CALL_DOWN,
+    N_TYPES,
+} target_type_t;
+
 
 /* Return mode */
 typedef enum {
