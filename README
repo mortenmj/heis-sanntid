@@ -1,1 +1,5 @@
 Henrik og Mortens heisprosjekt
+
+./autogen.sh
+./configure
+make
