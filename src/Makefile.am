@@ -8,7 +8,9 @@ heis_SOURCES = \
 	operator.c operator.h \
 	orderlist.c orderlist.h \
     target.c target.h \
+    timeout.c timeout.h \
 	debug.h \
+    config.h \
 	main.c
 
 heis_LDADD = $(top_builddir)/libheis/libheis.la $(top_builddir)/cJSON/libcjson.la

@@ -3,11 +3,11 @@
 #define DOORTIME 3
 
 typedef enum {
-	UP,
-	DOWN,
-	WAIT,
-	DOOR,
-	STOP,
+	STATE_UP,
+	STATE_DOWN,
+	STATE_WAIT,
+	STATE_DOOR,
+	STATE_STOP,
     N_STATES
 } state_t;
 

@@ -14,7 +14,6 @@
 long int systemStartTime;
 
 extern int my_id;
-extern elevstatus_t elevators[MAX_N_ELEVATORS];
 
 bool obstructionStored = 0;
 bool stopSignal = 0;
@@ -69,9 +68,9 @@ operator_store_floor_signal (int floor, int value) {
 		floorStored = floor;
 		elev_set_floor_indicator(floor);
 	} else {
-		if (s == UP) {
+		if (s == STATE_UP) {
 			floorStored += 0.5;
-		} else if (s == DOWN) {
+		} else if (s == STATE_DOWN) {
 			floorStored -= 0.5;
 		}
 	}
@@ -144,7 +143,7 @@ operator_init (void) {
 	elev_register_callback( SIGNAL_TYPE_STOP, &operator_set_stop_signal );
 	elev_register_callback( SIGNAL_TYPE_OBSTR, &operator_store_obstruction_signal);
 
-    operator_set_state(WAIT);
+    operator_set_state(STATE_WAIT);
 	systemStartTime = time(NULL);
 
     return state;
@@ -179,116 +178,101 @@ operator_elev (double floor, int target) {  // tar in ptarget i stedenfor target
 	static int doorTime; 
     state_t s = operator_get_state();
 
-	if (operator_get_stop_signal() != 0 && state != STOP) {
-        printf("going to STOP\n");
-		s = STOP;
+	if (operator_get_stop_signal() != 0 && state != STATE_STOP) {
+		s = STATE_STOP;
 		operator_stop_elev();
 		elev_set_stop_lamp(1);
 
 	} else {
 		switch(state) {
-			case UP:
+			case STATE_UP:
 				if (target == floor) {
-                    printf("in UP, going to WAIT\n");
-					s = WAIT;
+					s = STATE_WAIT;
 					operator_stop_elev();
 				}else if ( target == -1) {
-					printf("in UP, target == -1 floor == %f \n", floor);
 					if (fmod(floor,1) == 0) {
-						s = WAIT;
+						s = STATE_WAIT;
 						operator_stop_elev();
 					}
 				} else if ( target < floor){
-					printf("error: target under me while in UP exiting\n");
 					exit(1);
 				}
 			break;
 
-			case DOWN:
+			case STATE_DOWN:
 				if (target == floor && target > -1) {
-                    printf("in DOWN, going to WAIT\n");
-					s = WAIT;
+					s = STATE_WAIT;
 					operator_stop_elev();
 				} else if( target == -1) {
-					printf("in DOWN, target == -1 floor == %f \n", floor);
 					if (fmod(floor,1) == 0) {
-						s = WAIT;
+						s = STATE_WAIT;
 						operator_stop_elev();
 					}
 				} else if ( target > floor ){
 					exit(1);
-					printf("target above me while in DOWN\n");
 				}
 			break;
 
-			case WAIT:
+			case STATE_WAIT:
                 //goes back into DOOR if obstruction.
 				if (operator_get_obstruction_signal() == 0) {
-                    printf("in WAIT, going to DOOR\n");
-					s = DOOR;
+					s = STATE_DOOR;
 					doorTime = time(NULL);
 					elev_set_door_open_lamp(1);
 				} else {
 					if (target == floor) {
-                        printf("in WAIT, going to DOOR\n");
 						doorTime = time(NULL);
-						s = DOOR;
+						s = STATE_DOOR;
 						elev_set_door_open_lamp(1);
                     }
 
 					if (target > floor) {
-                        printf("in WAIT, going to UP\n");
-                        s = UP;
+                        s = STATE_UP;
 						elev_set_speed(SPEED);
 					}
 
 					if (target < floor && target > -1) {
-                        printf("in WAIT, going to DOWN\n");
-						s = DOWN;
+						s = STATE_DOWN;
 						elev_set_speed(-SPEED);
 					}
 				}
 			break;
 
-			case DOOR:
+			case STATE_DOOR:
 				if (!operator_get_obstruction_signal())
 					doorTime = time(NULL);
 
 				if ((int) (time(NULL)) >= doorTime + DOORTIME) { 	//waits DOORTIME secounds befor closing
-                    printf("in DOOR, going to WAIT\n");
-					s = WAIT;
+					s = STATE_WAIT;
 					elev_set_door_open_lamp(0);
 					if (target == floor)					
 						target_clear_completed_order();				// trenger en funktion som sier fra at at target har blit betjent
 				}
 			break;
 
-			case STOP:
+			case STATE_STOP:
                 //if elevator has a target, then it will go out of NØD_STOP
 				if (target > floor && target != -1) {
-                    printf("in STOP, going to UP\n");
-					s = UP;
+					s = STATE_UP;
 					operator_reset_stop_signal();
 					elev_set_stop_lamp(0);
 					elev_set_speed(SPEED);
 					elev_set_door_open_lamp(0);
 				} else if (target < floor && target != -1) {
-                    printf("in STOP, going to DOWN\n");
-					s = DOWN;
+					s = STATE_DOWN;
 					operator_reset_stop_signal();
 					elev_set_stop_lamp(0);
 					elev_set_speed(-SPEED);
 					elev_set_door_open_lamp(0);
 				} else if (target == floor && target != -1) {
-                    printf("in STOP, going to WAIT\n");
-					s = WAIT;
+					s = STATE_WAIT;
 					operator_reset_stop_signal();
 					elev_set_stop_lamp(0);
 				}
 			break;
 
             default:
-              s = WAIT;
+              s = STATE_WAIT;
 		}
 	}
 
@@ -311,15 +295,15 @@ void
 operator_print_state (double floor, int target) {
     state_t s = operator_get_state();
     
-    if (s == UP)
+    if (s == STATE_UP)
         printf("\ts: \t\tUP\n");
-    else if (s == DOWN)
+    else if (s == STATE_DOWN)
         printf("\ts: \t\tDOWN\n");
-    else if (s == WAIT)
+    else if (s == STATE_WAIT)
         printf("\ts: \t\tWAIT\n");
-    else if (s == DOOR)
+    else if (s == STATE_DOOR)
         printf("\ts: \t\tDOOR\n");
-    else if (s == STOP)
+    else if (s == STATE_STOP)
         printf("\ts: \t\tSTOP\n");
 
 
@@ -331,9 +315,9 @@ operator_print_state (double floor, int target) {
 
     printf("\tN_FLOORS: \t%i\n", N_FLOORS);
     printf("\tDoor time: \t%i sec\n", DOORTIME);
-    if (s == UP)
+    if (s == STATE_UP)
         printf("\tSpeed:\t\t%i\n", SPEED);
-    else if (s == DOWN)
+    else if (s == STATE_DOWN)
         printf("\tSpeed:\t\t%i\n", -SPEED);
     else
         printf("\tSpeed:\t\t0\n");
