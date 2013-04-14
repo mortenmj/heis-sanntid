@@ -25,15 +25,6 @@
 int fdout, fdin;
 struct sockaddr_in addr;
 
-// get sockaddr, IPv4 or IPv6:
-static void *get_in_addr(struct sockaddr *sa) {
-	if (sa->sa_family == AF_INET) {
-		return &(((struct sockaddr_in*)sa)->sin_addr);
-	}
-
-	return &(((struct sockaddr_in6*)sa)->sin6_addr);
-}
-
 /* comms_set_blocking:
  * socket: Socket descriptor
  *

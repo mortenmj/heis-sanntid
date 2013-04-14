@@ -9,55 +9,17 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-typedef enum {
-	NONE,
-	UPWARD,
-	DOWNWARD,
-	LOCKONOUTSIDE,
-    N_PRIORITIES
-} priority_t;
-
-typedef enum {
-    COMMAND,
-    CALLUP,
-    CALLDOWN,
-    N_TARGET
-} targettype_t;
-
-/* Return mode */
-typedef enum {
-    PRIORITY,
-    EQUAL = 0,
-    TARGET = 1,
-    ORDERTYPE = 2,
-    INPUT = 2,
-    N_RETURNMODE_T = 2
-} rmode_t;
-
-typedef struct {
-	bool registered;
-    bool updated;
-} orderinfo_t;
-
-typedef struct {
-	//shared info between elevators
-	priority_t priority;
-	bool emergency_stop;
-	double floor;
-	// local info
-	struct in_addr addr;
-	struct in_addr elev_ready_for_sync;
-	bool synced;
-    bool global_sync;
-	orderinfo_t commands[N_FLOORS]; 
-} elevstatus_t;
+#include "types.h"
 
 int orderlist_init (void);
 void orderlist_register_local_orders (void);
 void orderlist_clear_update_flag (void);
 void orderlist_set_lights (void);
-elevstatus_t* orderlist_get_local_status (void);
+elevator_t *orderlist_get_local_elevator (void);
+order_t orderlist_get_local_order (int floor, order_type_t type);
+void orderlist_set_local_order (int floor, order_type_t type, bool value);
 int orderlist_sync (int fd);
 void orderlist_print_lists(void);
+void orderlist_commands_to_file ();
 
 #endif

@@ -4,7 +4,6 @@ bin_PROGRAMS = heis
 heis_SOURCES = \
 	comms.c comms.h \
 	messages.c messages.h \
-	queue.c queue.h \
 	operator.c operator.h \
 	orderlist.c orderlist.h \
     target.c target.h \

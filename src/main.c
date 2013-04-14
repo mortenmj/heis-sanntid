@@ -17,7 +17,6 @@
 
 #include "comms.h"
 #include "messages.h"
-#include "queue.h"
 #include "operator.h"
 #include "orderlist.h"
 #include "target.h"
@@ -27,7 +26,6 @@
 bool orders[N_ORDERS][N_FLOORS];
 void command_signal_callback (int floor, int value);
 int fdout, fdin;
-int target;
 
 int main (void)
 {
@@ -59,7 +57,7 @@ int main (void)
         exit(1);
     }
 	
-	operator_start_elev();
+	operator_start();
 
 	fdout = comms_create_out_socket();
 	fdin = comms_create_in_socket();
@@ -73,11 +71,11 @@ int main (void)
 
         floor = operator_get_floor();
         target = target_update(floor);
-        
-		operator_elev(floor, target);
-		orderlist_set_lights();
+		operator_update (floor, target);
 
+		//orderlist_print_lists();
 		//operator_print_state(floor, target);
+		orderlist_set_lights();
 	}
 
 	return 0;

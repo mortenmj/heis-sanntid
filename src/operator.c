@@ -8,13 +8,14 @@
 #include "libheis/elev.h"
 #include "operator.h"
 #include "target.h"
+#include "types.h"
 
 //Private variables:
 
 long int systemStartTime;
 
 extern int my_id;
-extern elevstatus_t elevators[MAX_N_ELEVATORS];
+extern elevator_t elevators[MAX_N_ELEVATORS];
 
 bool obstructionStored = 0;
 bool stopSignal = 0;
@@ -138,6 +139,12 @@ operator_stop_elev(void) {
 
 // Public functions:
 
+/*
+ * operator_init:
+ *
+ * Moves the elevator to the nearest floor on startup
+ *
+ */
 int
 operator_init (void) {
 	elev_register_callback( SIGNAL_TYPE_SENSOR, &operator_store_floor_signal );
@@ -150,20 +157,29 @@ operator_init (void) {
     return state;
 }
 
+/*
+ * operator_start
+ *
+ * Moves the elevator to the nearest floor on startup
+ *
+ */
 void
-operator_start_elev (void) {
-    if (operator_get_floor() == -1){
+operator_start (void) {
+    if (operator_get_floor() == -1) {
    	    elev_set_speed(SPEED);
    	    int stop = 0;
-	    while (operator_get_floor() == -1){		//Runs until floor reach
-		    if( operator_get_stop_signal() && stop == 0 ){ 		//emergency stop
+        /* Run elevator until a floor is reached */
+	    while (operator_get_floor() == -1) {
+            /* Watch for emergency stop */
+		    if(operator_get_stop_signal() && stop == 0) {
 		        stop = 1;
 			    operator_stop_elev();
 			    operator_reset_stop_signal();
 			    printf("Press glowing button to start\n");
-			    elev_set_stop_lamp(1); //turns on glowing button
+			    elev_set_stop_lamp(1);
 		    }
-		    if(operator_get_stop_signal() && stop){ 				//emergency start...
+            /* Restart after emergency stop */
+		    if(operator_get_stop_signal() && stop) {
 			    stop = 0;
 			    operator_reset_stop_signal();
 			    elev_set_stop_lamp(0);
@@ -174,8 +190,16 @@ operator_start_elev (void) {
     }
 }
 
-int
-operator_elev (double floor, int target) {  // tar in ptarget i stedenfor target for og kunne teste operatoren
+/*
+ * operator_update
+ * floor: The current floor
+ * target: The current target of the system
+ *
+ * Updates the state of the system
+ *
+ */
+void
+operator_update (double floor, int target) {  // tar in ptarget i stedenfor target for og kunne teste operatoren
 	static int doorTime; 
     state_t s = operator_get_state();
 
@@ -188,7 +212,7 @@ operator_elev (double floor, int target) {  // tar in ptarget i stedenfor target
 	} else {
 		switch(state) {
 			case UP:
-				if (target == floor) {
+				if (fabs(target - floor) < 0.00001) {
                     printf("in UP, going to WAIT\n");
 					s = WAIT;
 					operator_stop_elev();
@@ -205,7 +229,7 @@ operator_elev (double floor, int target) {  // tar in ptarget i stedenfor target
 			break;
 
 			case DOWN:
-				if (target == floor && target > -1) {
+				if ((fabs(target - floor) < 0.00001) && target > -1) {
                     printf("in DOWN, going to WAIT\n");
 					s = WAIT;
 					operator_stop_elev();
@@ -229,20 +253,16 @@ operator_elev (double floor, int target) {  // tar in ptarget i stedenfor target
 					doorTime = time(NULL);
 					elev_set_door_open_lamp(1);
 				} else {
-					if (target == floor) {
+					if (fabs(target - floor) < 0.00001) {
                         printf("in WAIT, going to DOOR\n");
 						doorTime = time(NULL);
 						s = DOOR;
 						elev_set_door_open_lamp(1);
-                    }
-
-					if (target > floor) {
+                    } else if (target > floor) {
                         printf("in WAIT, going to UP\n");
                         s = UP;
 						elev_set_speed(SPEED);
-					}
-
-					if (target < floor && target > -1) {
+					} else if (target < floor && target > -1) {
                         printf("in WAIT, going to DOWN\n");
 						s = DOWN;
 						elev_set_speed(-SPEED);
@@ -251,15 +271,18 @@ operator_elev (double floor, int target) {  // tar in ptarget i stedenfor target
 			break;
 
 			case DOOR:
-				if (!operator_get_obstruction_signal())
+				if (!operator_get_obstruction_signal()) {
 					doorTime = time(NULL);
+                }
 
 				if ((int) (time(NULL)) >= doorTime + DOORTIME) { 	//waits DOORTIME secounds befor closing
                     printf("in DOOR, going to WAIT\n");
 					s = WAIT;
 					elev_set_door_open_lamp(0);
-					if (target == floor)					
+					if (target == (int)floor) {
+                        printf("clearing completed orders\n");
 						target_clear_completed_order();				// trenger en funktion som sier fra at at target har blit betjent
+                    }
 				}
 			break;
 
@@ -279,7 +302,7 @@ operator_elev (double floor, int target) {  // tar in ptarget i stedenfor target
 					elev_set_stop_lamp(0);
 					elev_set_speed(-SPEED);
 					elev_set_door_open_lamp(0);
-				} else if (target == floor && target != -1) {
+				} else if (target == (int)floor && target != -1) {
                     printf("in STOP, going to WAIT\n");
 					s = WAIT;
 					operator_reset_stop_signal();
@@ -294,15 +317,12 @@ operator_elev (double floor, int target) {  // tar in ptarget i stedenfor target
 
     //printf("setting state to %d\n", s);
     operator_set_state(s);
-
-    return 0;
 }
 
 /*
- * operator_set_stop_signal
+ * operator_print_state:
  * floor: The current floor
- * state: The current state of the system
- * target: The target of the system
+ * target: The current target of the system
  *
  * Function to pretty print the state of the system
  *

@@ -9,12 +9,13 @@
 #include <cJSON/cJSON.h>
 
 #include "comms.h"
+#include "types.h"
 
 char*
 message_create_status (void) {
     char* out;
     cJSON *root, *status, *call_up, *call_down, *floor;
-    elevstatus_t* s = orderlist_get_local_status();
+    elevator_t *s = orderlist_get_local_elevator();
 
     root = cJSON_CreateObject();
     cJSON_AddStringToObject(root, "sender", inet_ntoa(comms_get_address()));
@@ -24,6 +25,7 @@ message_create_status (void) {
     cJSON_AddNumberToObject(status, "emergency_stop", s->emergency_stop);
     cJSON_AddNumberToObject(status, "floor", s->floor);
     cJSON_AddNumberToObject(status, "synced", s->synced);
+    cJSON_AddNumberToObject(status, "global_sync", s->global_sync);
     
     cJSON_AddItemToObject(root, "call_up", call_up=cJSON_CreateArray());
     cJSON_AddItemToObject(root, "call_down", call_down=cJSON_CreateArray());
@@ -47,11 +49,11 @@ message_create_status (void) {
 int
 message_parse_status (message_t* m, char* msg) {
     cJSON *root, *status, *up, *down, *floor;
-    elevstatus_t e;
+    elevator_t e;
     char* senderstr;
     char* tmp = malloc(strlen(msg));
     strcpy(tmp, msg); 
-    orderinfo_t callUp_tmp[N_FLOORS-1];
+    order_t callUp_tmp[N_FLOORS-1];
 
     root = cJSON_Parse(tmp);
 
@@ -66,6 +68,7 @@ message_parse_status (message_t* m, char* msg) {
     e.emergency_stop = cJSON_GetObjectItem(status, "emergency_stop")->valueint;
     e.floor = cJSON_GetObjectItem(status, "floor")->valueint;
     e.synced = cJSON_GetObjectItem(status, "synced")->valueint;
+    e.global_sync = cJSON_GetObjectItem(status, "global_sync")->valueint;
     m->status = e;
 
     up = cJSON_GetObjectItem(root, "call_up");
